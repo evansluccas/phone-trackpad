@@ -8,6 +8,14 @@ Use your iPhone as a trackpad for your Mac. No App Store, no installs.
 3. On the iPhone (same Wi-Fi): open the URL the script prints.
 4. Optional: Safari → Share → **Add to Home Screen** so it opens full-screen like an app.
 
+## Start automatically at login
+```bash
+./autostart.sh install
+```
+The server then runs in the background every time you log in. The first time, macOS asks to let **python3** control your computer: turn it on in System Settings → Privacy & Security → Accessibility, then run `./autostart.sh restart`.
+
+Other commands: `./autostart.sh status` (shows the phone URL), `./autostart.sh log`, `./autostart.sh uninstall`.
+
 ## Gestures
 | Gesture | Does |
 |---|---|

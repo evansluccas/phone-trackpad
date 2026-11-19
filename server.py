@@ -409,12 +409,38 @@ def local_ip():
         s.close()
 
 
+def ask_for_accessibility():
+    """Show macOS's 'allow this app to control your computer' prompt and add
+    this program to the Accessibility list, so the user only flips a switch."""
+    try:
+        cf.CFDictionaryCreate.restype = vp
+        cf.CFDictionaryCreate.argtypes = [vp, ctypes.POINTER(vp), ctypes.POINTER(vp),
+                                          ctypes.c_long, vp, vp]
+        cg.AXIsProcessTrustedWithOptions.restype = ctypes.c_bool
+        cg.AXIsProcessTrustedWithOptions.argtypes = [vp]
+        key = vp.in_dll(cg, "kAXTrustedCheckOptionPrompt")
+        true = vp.in_dll(cf, "kCFBooleanTrue")
+        keys, values = (vp * 1)(key.value), (vp * 1)(true.value)
+        opts = cf.CFDictionaryCreate(
+            None, keys, values, 1,
+            ctypes.addressof(vp.in_dll(cf, "kCFTypeDictionaryKeyCallBacks")),
+            ctypes.addressof(vp.in_dll(cf, "kCFTypeDictionaryValueCallBacks")))
+        cg.AXIsProcessTrustedWithOptions(opts)
+        cf.CFRelease(opts)
+    except (AttributeError, ValueError, OSError):
+        pass
+
+
 def main():
     if not cg.AXIsProcessTrusted():
+        ask_for_accessibility()
         print("\n  ! This app can't control the cursor yet.")
-        print("    Open System Settings > Privacy & Security > Accessibility,")
-        print("    turn ON the app you ran this from (Terminal, iTerm, VS Code...),")
-        print("    then restart this script.\n")
+        print("    Open System Settings > Privacy & Security > Accessibility and turn ON:")
+        if sys.stdin is not None and sys.stdin.isatty():
+            print("      the app you ran this from (Terminal, iTerm, VS Code...)")
+        else:
+            print(f"      python3  ({os.path.realpath(sys.executable)})")
+        print("    then restart the server.\n")
     url = f"http://{local_ip()}:{PORT}/?t={TOKEN}"
     print("\n  Phone Trackpad is running.")
     print("  On your iPhone (same Wi-Fi), open:\n")
