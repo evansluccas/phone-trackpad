@@ -20,6 +20,7 @@
     --accent: #6ea8ff;
     --ok: #3ddc84;
     --bad: #ff6b6b;
+    --vh: 100%;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
@@ -29,32 +30,80 @@
     -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
     touch-action: none; overscroll-behavior: none;
   }
+  button { font: inherit; color: inherit; }
   .app {
-    position: fixed; inset: 0; display: flex; flex-direction: column; gap: 10px;
+    position: fixed; left: 0; right: 0; top: 0; height: var(--vh);
+    display: flex; flex-direction: column; gap: 10px;
     padding: calc(env(safe-area-inset-top) + 8px) 12px calc(env(safe-area-inset-bottom) + 12px);
   }
-  header { display: flex; align-items: center; justify-content: space-between; height: 36px; }
-  .status { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--bad); transition: background .2s; }
+  body.typing .app { padding-bottom: 8px; }
+
+  /* header */
+  header { display: flex; align-items: center; gap: 10px; height: 36px; }
+  .status { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--bad); flex: none; transition: background .2s; }
   .dot.on { background: var(--ok); }
+  .seg { display: flex; background: var(--pad); border: 1px solid var(--line); border-radius: 10px; padding: 2px; height: 36px; }
+  .seg button { border: 0; background: none; padding: 0 12px; border-radius: 8px; color: var(--muted); font-size: 13px; font-weight: 600; }
+  .seg button.on { background: #2a2f3a; color: var(--text); }
   .icon-btn {
-    width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line);
-    background: var(--pad); color: var(--text); display: grid; place-items: center;
+    width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line); flex: none;
+    background: var(--pad); display: grid; place-items: center; padding: 0;
   }
+
+  /* trackpad */
   #pad {
-    flex: 1; border-radius: 22px; background: var(--pad); border: 1px solid var(--line);
+    flex: 1; min-height: 80px; border-radius: 22px; background: var(--pad); border: 1px solid var(--line);
     position: relative; transition: background .12s;
     display: grid; place-items: center; color: #3a3f4b; font-size: 13px; text-align: center;
   }
   #pad.active { background: var(--pad-active); }
   #pad .hint { line-height: 1.8; pointer-events: none; }
   #pad.used .hint { opacity: 0; transition: opacity .6s; }
-  .buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; height: 76px; }
+  #toast {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    background: #2a2f3a; color: var(--text); font-size: 12px; font-weight: 600;
+    padding: 6px 12px; border-radius: 999px; opacity: 0; transition: opacity .2s; pointer-events: none;
+  }
+  #toast.show { opacity: 1; }
+
+  /* bottom buttons */
+  .buttons { display: grid; grid-template-columns: 1fr 64px 1fr; gap: 10px; height: 76px; transition: height .25s ease; }
   .mbtn {
     border-radius: 18px; background: var(--pad); border: 1px solid var(--line);
     display: grid; place-items: center; color: var(--muted); font-weight: 600; font-size: 14px;
   }
   .mbtn.down { background: var(--accent); color: #0b0c0f; border-color: var(--accent); }
+  .mbtn .slides-label { display: none; }
+  body.slides .buttons { height: 38%; }
+  body.slides .mbtn { font-size: 20px; }
+  body.slides .mbtn .mouse-label { display: none; }
+  body.slides .mbtn .slides-label { display: inline; }
+  body.typing .buttons { height: 52px; }
+  #kbdBtn.on { background: var(--accent); color: #0b0c0f; border-color: var(--accent); }
+
+  /* keyboard extras (visible while typing) */
+  .typing-bar { display: none; flex-direction: column; gap: 8px; }
+  body.typing .typing-bar { display: flex; }
+  .typed {
+    height: 22px; color: var(--muted); font-size: 13px; overflow: hidden; white-space: nowrap;
+    direction: rtl; text-align: left; padding: 0 4px;
+  }
+  .typed span { direction: ltr; unicode-bidi: plaintext; }
+  .keys { display: flex; gap: 5px; }
+  .key {
+    flex: 1; height: 40px; border-radius: 9px; background: var(--pad); border: 1px solid var(--line);
+    display: grid; place-items: center; font-size: 14px; color: var(--text); padding: 0;
+  }
+  .key.small { font-size: 11px; color: var(--muted); }
+  .key.armed { background: var(--accent); color: #0b0c0f; border-color: var(--accent); }
+  .key.down { background: #2a2f3a; }
+  #kbd {
+    position: fixed; bottom: 0; left: 0; width: 1px; height: 1px; opacity: 0;
+    font-size: 16px; border: 0; padding: 0; caret-color: transparent; color: transparent;
+  }
+
+  /* settings */
   .sheet {
     position: fixed; left: 12px; right: 12px; bottom: calc(env(safe-area-inset-bottom) + 12px);
     background: #1a1d24; border: 1px solid var(--line); border-radius: 20px; padding: 18px;
@@ -73,6 +122,10 @@
 <div class="app">
   <header>
     <div class="status"><span class="dot" id="dot"></span><span id="statusText">Connecting…</span></div>
+    <div class="seg" role="tablist">
+      <button id="modeMouse" class="on">Mouse</button>
+      <button id="modeSlides">Slides</button>
+    </div>
     <button class="icon-btn" id="gear" aria-label="Settings">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="6" r="2" fill="#15171c"/><circle cx="15" cy="12" r="2" fill="#15171c"/><circle cx="7" cy="18" r="2" fill="#15171c"/></svg>
     </button>
@@ -81,17 +134,39 @@
   <div id="pad">
     <div class="hint">
       1 finger: move · tap: click<br>
-      double-tap: double-click<br>
-      double-tap + slide: drag<br>
-      2 fingers: scroll · 2-finger tap: right-click
+      double-tap: double-click · double-tap + slide: drag<br>
+      2 fingers: scroll · 2-finger tap: right-click<br>
+      3 fingers ← →: switch apps · ↑ ↓: Mission Control
+    </div>
+    <div id="toast"></div>
+  </div>
+
+  <div class="typing-bar">
+    <div class="typed"><span id="typed"></span></div>
+    <div class="keys">
+      <button class="key small" data-key="esc">esc</button>
+      <button class="key small" data-key="tab">tab</button>
+      <button class="key" data-mod="cmd">⌘</button>
+      <button class="key" data-mod="alt">⌥</button>
+      <button class="key" data-mod="ctrl">⌃</button>
+      <button class="key" data-mod="shift">⇧</button>
+      <button class="key" data-key="left">←</button>
+      <button class="key" data-key="up">↑</button>
+      <button class="key" data-key="down">↓</button>
+      <button class="key" data-key="right">→</button>
     </div>
   </div>
 
   <div class="buttons">
-    <div class="mbtn" data-b="left">Left</div>
-    <div class="mbtn" data-b="right">Right</div>
+    <div class="mbtn" data-b="left"><span class="mouse-label">Left</span><span class="slides-label">‹ Back</span></div>
+    <div class="mbtn" id="kbdBtn" aria-label="Keyboard">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6 10h.01M9.5 10h.01M13 10h.01M16.5 10h.01M6.5 14h11"/></svg>
+    </div>
+    <div class="mbtn" data-b="right"><span class="mouse-label">Right</span><span class="slides-label">Next ›</span></div>
   </div>
 </div>
+
+<input id="kbd" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="enter" aria-label="Type on your Mac">
 
 <div class="sheet" id="sheet">
   <h2>Settings</h2>
@@ -103,18 +178,44 @@
 
 <script>
 (() => {
+  const $ = id => document.getElementById(id);
+
   // ---------- settings ----------
-  const defaults = { sens: 1.6, scrollSens: 2, invert: false };
+  const defaults = { sens: 1.6, scrollSens: 2, invert: false, mode: 'mouse' };
   let cfg = { ...defaults };
   try { Object.assign(cfg, JSON.parse(localStorage.getItem('trackpad-cfg') || '{}')); } catch (e) {}
   const save = () => { try { localStorage.setItem('trackpad-cfg', JSON.stringify(cfg)); } catch (e) {} };
-  const $ = id => document.getElementById(id);
   $('sens').value = cfg.sens; $('scrollSens').value = cfg.scrollSens; $('invert').checked = cfg.invert;
   $('sens').oninput = e => { cfg.sens = +e.target.value; save(); };
   $('scrollSens').oninput = e => { cfg.scrollSens = +e.target.value; save(); };
   $('invert').onchange = e => { cfg.invert = e.target.checked; save(); };
   $('gear').onclick = () => $('sheet').classList.add('open');
   $('done').onclick = () => $('sheet').classList.remove('open');
+
+  function setMode(m) {
+    cfg.mode = m; save();
+    document.body.classList.toggle('slides', m === 'slides');
+    $('modeMouse').classList.toggle('on', m === 'mouse');
+    $('modeSlides').classList.toggle('on', m === 'slides');
+  }
+  $('modeMouse').onclick = () => setMode('mouse');
+  $('modeSlides').onclick = () => setMode('slides');
+  setMode(cfg.mode);
+
+  // Keep the layout above the iOS keyboard.
+  const vv = window.visualViewport;
+  const fit = () => {
+    document.documentElement.style.setProperty('--vh', (vv ? vv.height : innerHeight) + 'px');
+    window.scrollTo(0, 0);
+  };
+  if (vv) { vv.addEventListener('resize', fit); vv.addEventListener('scroll', fit); }
+  fit();
+
+  let toastTimer;
+  function toast(text) {
+    $('toast').textContent = text; $('toast').classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').classList.remove('show'), 900);
+  }
 
   // ---------- connection ----------
   const token = new URLSearchParams(location.search).get('t') || '';
@@ -124,7 +225,7 @@
     clearTimeout(retry);
     if (ws && ws.readyState <= 1) return;
     ws = new WebSocket(`ws://${location.host}/ws?t=${encodeURIComponent(token)}`);
-    ws.onopen = () => setStatus(true, 'Connected to Mac');
+    ws.onopen = () => setStatus(true, 'Connected');
     ws.onclose = () => { setStatus(false, 'Reconnecting…'); retry = setTimeout(connect, 1000); };
     ws.onerror = () => ws.close();
   }
@@ -146,6 +247,7 @@
   // ---------- trackpad gestures ----------
   const pad = $('pad');
   const TAP_MS = 220, TAP_MOVE = 10, DOUBLE_MS = 320;
+  const SWIPE_START = 25, SWITCH_STEP = 70;
   let g = null;            // current gesture
   let lastTapEnd = 0, tapCount = 0;
 
@@ -161,7 +263,8 @@
     const ts = e.targetTouches, now = performance.now(), p = mid(ts);
     if (!g) {
       g = { start: now, last: now, x: p.x, y: p.y, dist: 0, max: ts.length,
-            maybeDrag: now - lastTapEnd < DOUBLE_MS, dragging: false };
+            maybeDrag: now - lastTapEnd < DOUBLE_MS, dragging: false,
+            tx: 0, ty: 0, axis: null, switching: false };
     } else {
       g.max = Math.max(g.max, ts.length);
       g.x = p.x; g.y = p.y; // re-anchor when finger count changes, no jump
@@ -176,7 +279,29 @@
     g.x = p.x; g.y = p.y; g.last = now;
     g.dist += Math.hypot(dx, dy);
 
-    if (ts.length >= 2) {
+    // three fingers: app switcher (left/right) or Mission Control (up/down)
+    if (g.max >= 3) {
+      if (ts.length < 3 && !g.axis) return;
+      g.tx += dx; g.ty += dy;
+      if (!g.axis && Math.hypot(g.tx, g.ty) > SWIPE_START) {
+        g.axis = Math.abs(g.tx) > Math.abs(g.ty) ? 'x' : 'y';
+        if (g.axis === 'x') {
+          g.switching = true; g.tx = 0;
+          send({ t: 'switcher', a: 'start' }); toast('Switch apps');
+        } else {
+          const d = g.ty < 0 ? 'up' : 'down';
+          send({ t: 'mission', d }); toast(d === 'up' ? 'Mission Control' : 'App windows');
+        }
+      }
+      if (g.axis === 'x') {
+        while (g.tx > SWITCH_STEP) { send({ t: 'switcher', a: 'next' }); g.tx -= SWITCH_STEP; }
+        while (g.tx < -SWITCH_STEP) { send({ t: 'switcher', a: 'prev' }); g.tx += SWITCH_STEP; }
+      }
+      return;
+    }
+
+    if (ts.length === 2) {
+      if (now - g.start < 70) return; // wait in case a third finger is landing
       const k = cfg.scrollSens * (cfg.invert ? -1 : 1);
       sx += dx * k; sy += dy * k;
       return;
@@ -201,9 +326,13 @@
     }
     pad.classList.remove('active');
     const now = performance.now(), quick = now - g.start < TAP_MS && g.dist < TAP_MOVE;
-    if (g.dragging) {
+    if (g.switching) {
+      send({ t: 'switcher', a: 'end' });
+    } else if (g.max >= 3) {
+      // three-finger gesture finished; nothing else to do
+    } else if (g.dragging) {
       send({ t: 'up', b: 'left', n: 1 });
-    } else if (quick && g.max >= 2) {
+    } else if (quick && g.max === 2) {
       send({ t: 'click', b: 'right', n: 1 });
     } else if (quick || (g.maybeDrag && g.dist < TAP_MOVE)) {
       tapCount = now - lastTapEnd < DOUBLE_MS ? Math.min(tapCount + 1, 3) : 1;
@@ -215,13 +344,95 @@
   pad.addEventListener('touchend', end, { passive: false });
   pad.addEventListener('touchcancel', end, { passive: false });
 
-  // ---------- physical-style buttons (hold Left + slide on pad = drag) ----------
-  document.querySelectorAll('.mbtn').forEach(btn => {
+  // ---------- Left / Right buttons ----------
+  // Mouse mode: mouse buttons (hold Left + slide on pad = drag).
+  // Slides mode: left / right arrow keys.
+  document.querySelectorAll('.mbtn[data-b]').forEach(btn => {
     const b = btn.dataset.b;
-    btn.addEventListener('touchstart', e => { e.preventDefault(); btn.classList.add('down'); send({ t: 'down', b, n: 1 }); }, { passive: false });
-    const up = e => { e.preventDefault(); btn.classList.remove('down'); send({ t: 'up', b, n: 1 }); };
+    let held = false;
+    btn.addEventListener('touchstart', e => {
+      e.preventDefault();
+      btn.classList.add('down');
+      if (cfg.mode === 'slides') send({ t: 'key', k: b === 'left' ? 'left' : 'right' });
+      else { held = true; send({ t: 'down', b, n: 1 }); }
+    }, { passive: false });
+    const up = e => {
+      e.preventDefault();
+      btn.classList.remove('down');
+      if (held) { held = false; send({ t: 'up', b, n: 1 }); }
+    };
     btn.addEventListener('touchend', up, { passive: false });
     btn.addEventListener('touchcancel', up, { passive: false });
+  });
+
+  // ---------- keyboard ----------
+  const kbd = $('kbd'), kbdBtn = $('kbdBtn');
+  const SENTINEL = '​'; // invisible char so Backspace always has something to delete
+  let typed = '';
+  const armed = new Set();
+
+  function showTyped(s) {
+    typed = (typed + s).slice(-80);
+    $('typed').textContent = typed;
+  }
+  function resetKbd() { kbd.value = SENTINEL; try { kbd.setSelectionRange(1, 1); } catch (e) {} }
+  function takeMods() {
+    const mods = [...armed];
+    armed.clear();
+    document.querySelectorAll('.key[data-mod]').forEach(k => k.classList.remove('armed'));
+    return mods;
+  }
+  function sendKey(k) {
+    send({ t: 'key', k, mods: takeMods() });
+    if (k === 'backspace') { typed = typed.slice(0, -1); $('typed').textContent = typed; }
+    else if (k === 'enter') showTyped(' ⏎ ');
+  }
+  function sendText(s) {
+    if (armed.size && s.length === 1) {
+      const mods = takeMods();
+      send({ t: 'key', k: s, mods });
+      showTyped(` ${mods.map(m => ({ cmd: '⌘', alt: '⌥', ctrl: '⌃', shift: '⇧' })[m]).join('')}${s.toUpperCase()} `);
+    } else {
+      send({ t: 'text', s });
+      showTyped(s);
+    }
+  }
+
+  kbd.addEventListener('focus', () => { resetKbd(); document.body.classList.add('typing'); kbdBtn.classList.add('on'); });
+  kbd.addEventListener('blur', () => { document.body.classList.remove('typing'); kbdBtn.classList.remove('on'); takeMods(); });
+  kbd.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); sendKey('enter'); }
+  });
+  kbd.addEventListener('input', () => {
+    const v = kbd.value;
+    let i = 0;
+    while (i < v.length && i < SENTINEL.length && v[i] === SENTINEL[i]) i++;
+    const deleted = SENTINEL.length - i;
+    const added = v.slice(i).replace(/​/g, '');
+    for (let n = 0; n < deleted; n++) sendKey('backspace');
+    if (added) sendText(added);
+    resetKbd();
+  });
+
+  kbdBtn.addEventListener('touchstart', e => { e.preventDefault(); }, { passive: false });
+  kbdBtn.addEventListener('touchend', e => {
+    e.preventDefault();
+    if (document.activeElement === kbd) kbd.blur(); else kbd.focus();
+  }, { passive: false });
+
+  // extra keys row: preventDefault keeps the iOS keyboard open
+  document.querySelectorAll('.key').forEach(el => {
+    el.addEventListener('touchstart', e => { e.preventDefault(); el.classList.add('down'); }, { passive: false });
+    el.addEventListener('touchend', e => {
+      e.preventDefault(); el.classList.remove('down');
+      if (el.dataset.mod) {
+        const m = el.dataset.mod;
+        if (armed.has(m)) armed.delete(m); else armed.add(m);
+        el.classList.toggle('armed', armed.has(m));
+      } else {
+        sendKey(el.dataset.key);
+      }
+    }, { passive: false });
   });
 })();
 </script>

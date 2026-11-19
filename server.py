@@ -80,6 +80,10 @@ cg.CGGetActiveDisplayList.argtypes = [u32, ctypes.POINTER(u32), ctypes.POINTER(u
 cg.CGDisplayBounds.restype = CGRect
 cg.CGDisplayBounds.argtypes = [u32]
 cg.AXIsProcessTrusted.restype = ctypes.c_bool
+cg.CGEventCreateKeyboardEvent.restype = vp
+cg.CGEventCreateKeyboardEvent.argtypes = [vp, ctypes.c_uint16, ctypes.c_bool]
+cg.CGEventSetFlags.argtypes = [vp, ctypes.c_uint64]
+cg.CGEventKeyboardSetUnicodeString.argtypes = [vp, ctypes.c_ulong, ctypes.POINTER(ctypes.c_uint16)]
 cf.CFRelease.argtypes = [vp]
 
 # CGEventType / button / field constants
@@ -172,9 +176,113 @@ class Mouse:
 mouse = Mouse()
 
 
+# --------------------------------------------------------------------------
+# Keyboard
+# --------------------------------------------------------------------------
+FLAG = {"shift": 0x20000, "ctrl": 0x40000, "alt": 0x80000, "cmd": 0x100000}
+ARROW_FLAGS = 0x800000 | 0x200000  # fn + numeric pad, like a real arrow key
+KEY_CMD = 55
+
+# Named keys and US-layout characters (used for shortcuts like Cmd+C).
+KEYCODES = {
+    "enter": 36, "tab": 48, "space": 49, "backspace": 51, "esc": 53,
+    "delete": 117, "home": 115, "end": 119, "pageup": 116, "pagedown": 121,
+    "left": 123, "right": 124, "down": 125, "up": 126,
+}
+for _ch, _code in zip(
+        "asdfhgzxcvbqweryt123465=97-80]ou[ip"
+        "lj'k;\\,/nm.`",
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+         21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
+         37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 50]):
+    KEYCODES[_ch] = _code
+
+
+class Keyboard:
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.switcher = False
+
+    @staticmethod
+    def _key(code, down, flags=0):
+        e = cg.CGEventCreateKeyboardEvent(None, code, down)
+        cg.CGEventSetFlags(e, flags)
+        cg.CGEventPost(HID_TAP, e)
+        cf.CFRelease(e)
+
+    def press(self, name, mods=()):
+        flags = 0
+        if name == " ":
+            name = "space"
+        if len(name) == 1:
+            if name.isupper():
+                flags |= FLAG["shift"]
+            name = name.lower()
+        else:
+            name = name.lower()
+        code = KEYCODES.get(name)
+        if code is None:
+            return
+        for m in mods:
+            flags |= FLAG.get(m, 0)
+        if name in ("left", "right", "up", "down"):
+            flags |= ARROW_FLAGS
+        with self.lock:
+            self._key(code, True, flags)
+            self._key(code, False, flags)
+
+    def type_text(self, text):
+        with self.lock:
+            for ch in text:
+                if ch in "\r\n":
+                    self._key(KEYCODES["enter"], True)
+                    self._key(KEYCODES["enter"], False)
+                    continue
+                units = ch.encode("utf-16-le")
+                buf = (ctypes.c_uint16 * (len(units) // 2)).from_buffer_copy(units)
+                for down in (True, False):
+                    e = cg.CGEventCreateKeyboardEvent(None, 0, down)
+                    cg.CGEventSetFlags(e, 0)
+                    cg.CGEventKeyboardSetUnicodeString(e, len(buf), buf)
+                    cg.CGEventPost(HID_TAP, e)
+                    cf.CFRelease(e)
+
+    # Cmd+Tab app switcher, held open while three fingers are down.
+    def switch(self, action):
+        cmd, tab = FLAG["cmd"], KEYCODES["tab"]
+        with self.lock:
+            if action == "start" and not self.switcher:
+                self.switcher = True
+                self._key(KEY_CMD, True, cmd)
+                self._key(tab, True, cmd)
+                self._key(tab, False, cmd)
+            elif action in ("next", "prev") and self.switcher:
+                flags = cmd | (FLAG["shift"] if action == "prev" else 0)
+                self._key(tab, True, flags)
+                self._key(tab, False, flags)
+            elif action == "end" and self.switcher:
+                self.switcher = False
+                self._key(KEY_CMD, False, 0)
+
+    def release_all(self):
+        self.switch("end")
+
+
+keyboard = Keyboard()
+
+
 def handle_message(msg):
     t = msg.get("t")
-    if t == "move":
+    if t == "text":
+        keyboard.type_text(str(msg.get("s", ""))[:500])
+    elif t == "key":
+        keyboard.press(str(msg.get("k", "")), msg.get("mods") or [])
+    elif t == "switcher":
+        keyboard.switch(msg.get("a"))
+    elif t == "mission":
+        # Ctrl+Up = Mission Control, Ctrl+Down = App windows
+        keyboard.press("up" if msg.get("d") == "up" else "down", ["ctrl"])
+    elif t == "move":
         mouse.move(float(msg.get("dx", 0)), float(msg.get("dy", 0)))
     elif t == "scroll":
         mouse.scroll(float(msg.get("dx", 0)), float(msg.get("dy", 0)))
@@ -257,7 +365,8 @@ class Handler(socketserver.StreamRequestHandler):
         except (ConnectionError, struct.error, OSError):
             pass
         finally:
-            mouse.release_all()  # never leave a button stuck down
+            mouse.release_all()  # never leave a button or Cmd stuck down
+            keyboard.release_all()
             print(f"  phone disconnected: {peer}")
 
     def read_exact(self, n):
