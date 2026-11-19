@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Trackpad">
+<meta name="theme-color" content="#0b0c0f">
+<title>Trackpad</title>
+<style>
+  :root {
+    --bg: #0b0c0f;
+    --pad: #15171c;
+    --pad-active: #1b1e25;
+    --line: #262a33;
+    --text: #e8eaf0;
+    --muted: #8a90a0;
+    --accent: #6ea8ff;
+    --ok: #3ddc84;
+    --bad: #ff6b6b;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--text);
+    font: 15px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+    touch-action: none; overscroll-behavior: none;
+  }
+  .app {
+    position: fixed; inset: 0; display: flex; flex-direction: column; gap: 10px;
+    padding: calc(env(safe-area-inset-top) + 8px) 12px calc(env(safe-area-inset-bottom) + 12px);
+  }
+  header { display: flex; align-items: center; justify-content: space-between; height: 36px; }
+  .status { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--bad); transition: background .2s; }
+  .dot.on { background: var(--ok); }
+  .icon-btn {
+    width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--pad); color: var(--text); display: grid; place-items: center;
+  }
+  #pad {
+    flex: 1; border-radius: 22px; background: var(--pad); border: 1px solid var(--line);
+    position: relative; transition: background .12s;
+    display: grid; place-items: center; color: #3a3f4b; font-size: 13px; text-align: center;
+  }
+  #pad.active { background: var(--pad-active); }
+  #pad .hint { line-height: 1.8; pointer-events: none; }
+  #pad.used .hint { opacity: 0; transition: opacity .6s; }
+  .buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; height: 76px; }
+  .mbtn {
+    border-radius: 18px; background: var(--pad); border: 1px solid var(--line);
+    display: grid; place-items: center; color: var(--muted); font-weight: 600; font-size: 14px;
+  }
+  .mbtn.down { background: var(--accent); color: #0b0c0f; border-color: var(--accent); }
+  .sheet {
+    position: fixed; left: 12px; right: 12px; bottom: calc(env(safe-area-inset-bottom) + 12px);
+    background: #1a1d24; border: 1px solid var(--line); border-radius: 20px; padding: 18px;
+    transform: translateY(130%); transition: transform .25s ease; z-index: 5;
+  }
+  .sheet.open { transform: none; }
+  .sheet h2 { margin: 0 0 14px; font-size: 16px; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 14px 0; }
+  .row label { color: var(--muted); }
+  input[type=range] { flex: 1; max-width: 60%; accent-color: var(--accent); }
+  input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--accent); }
+  .done { width: 100%; height: 44px; border: 0; border-radius: 12px; background: var(--accent); color: #0b0c0f; font-weight: 600; font-size: 15px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="status"><span class="dot" id="dot"></span><span id="statusText">Connecting…</span></div>
+    <button class="icon-btn" id="gear" aria-label="Settings">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="6" r="2" fill="#15171c"/><circle cx="15" cy="12" r="2" fill="#15171c"/><circle cx="7" cy="18" r="2" fill="#15171c"/></svg>
+    </button>
+  </header>
+
+  <div id="pad">
+    <div class="hint">
+      1 finger: move · tap: click<br>
+      double-tap: double-click<br>
+      double-tap + slide: drag<br>
+      2 fingers: scroll · 2-finger tap: right-click
+    </div>
+  </div>
+
+  <div class="buttons">
+    <div class="mbtn" data-b="left">Left</div>
+    <div class="mbtn" data-b="right">Right</div>
+  </div>
+</div>
+
+<div class="sheet" id="sheet">
+  <h2>Settings</h2>
+  <div class="row"><label for="sens">Speed</label><input id="sens" type="range" min="0.5" max="4" step="0.1"></div>
+  <div class="row"><label for="scrollSens">Scroll speed</label><input id="scrollSens" type="range" min="0.5" max="5" step="0.1"></div>
+  <div class="row"><label for="invert">Invert scrolling</label><input id="invert" type="checkbox"></div>
+  <button class="done" id="done">Done</button>
+</div>
+
+<script>
+(() => {
+  // ---------- settings ----------
+  const defaults = { sens: 1.6, scrollSens: 2, invert: false };
+  let cfg = { ...defaults };
+  try { Object.assign(cfg, JSON.parse(localStorage.getItem('trackpad-cfg') || '{}')); } catch (e) {}
+  const save = () => { try { localStorage.setItem('trackpad-cfg', JSON.stringify(cfg)); } catch (e) {} };
+  const $ = id => document.getElementById(id);
+  $('sens').value = cfg.sens; $('scrollSens').value = cfg.scrollSens; $('invert').checked = cfg.invert;
+  $('sens').oninput = e => { cfg.sens = +e.target.value; save(); };
+  $('scrollSens').oninput = e => { cfg.scrollSens = +e.target.value; save(); };
+  $('invert').onchange = e => { cfg.invert = e.target.checked; save(); };
+  $('gear').onclick = () => $('sheet').classList.add('open');
+  $('done').onclick = () => $('sheet').classList.remove('open');
+
+  // ---------- connection ----------
+  const token = new URLSearchParams(location.search).get('t') || '';
+  let ws = null, retry = null;
+  function setStatus(on, text) { $('dot').classList.toggle('on', on); $('statusText').textContent = text; }
+  function connect() {
+    clearTimeout(retry);
+    if (ws && ws.readyState <= 1) return;
+    ws = new WebSocket(`ws://${location.host}/ws?t=${encodeURIComponent(token)}`);
+    ws.onopen = () => setStatus(true, 'Connected to Mac');
+    ws.onclose = () => { setStatus(false, 'Reconnecting…'); retry = setTimeout(connect, 1000); };
+    ws.onerror = () => ws.close();
+  }
+  const send = msg => { if (ws && ws.readyState === 1) ws.send(JSON.stringify(msg)); };
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) connect(); });
+  connect();
+
+  // ---------- batched movement (one message per frame) ----------
+  let mx = 0, my = 0, sx = 0, sy = 0;
+  (function flush() {
+    if (mx || my) { send({ t: 'move', dx: +mx.toFixed(2), dy: +my.toFixed(2) }); mx = my = 0; }
+    if (Math.abs(sx) >= 1 || Math.abs(sy) >= 1) {
+      const dx = Math.trunc(sx), dy = Math.trunc(sy);
+      send({ t: 'scroll', dx, dy }); sx -= dx; sy -= dy;
+    }
+    requestAnimationFrame(flush);
+  })();
+
+  // ---------- trackpad gestures ----------
+  const pad = $('pad');
+  const TAP_MS = 220, TAP_MOVE = 10, DOUBLE_MS = 320;
+  let g = null;            // current gesture
+  let lastTapEnd = 0, tapCount = 0;
+
+  const mid = ts => {
+    let x = 0, y = 0;
+    for (const t of ts) { x += t.clientX; y += t.clientY; }
+    return { x: x / ts.length, y: y / ts.length };
+  };
+
+  pad.addEventListener('touchstart', e => {
+    e.preventDefault();
+    pad.classList.add('active', 'used');
+    const ts = e.targetTouches, now = performance.now(), p = mid(ts);
+    if (!g) {
+      g = { start: now, last: now, x: p.x, y: p.y, dist: 0, max: ts.length,
+            maybeDrag: now - lastTapEnd < DOUBLE_MS, dragging: false };
+    } else {
+      g.max = Math.max(g.max, ts.length);
+      g.x = p.x; g.y = p.y; // re-anchor when finger count changes, no jump
+    }
+  }, { passive: false });
+
+  pad.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (!g) return;
+    const ts = e.targetTouches, now = performance.now(), p = mid(ts);
+    const dx = p.x - g.x, dy = p.y - g.y, dt = Math.max(now - g.last, 1);
+    g.x = p.x; g.y = p.y; g.last = now;
+    g.dist += Math.hypot(dx, dy);
+
+    if (ts.length >= 2) {
+      const k = cfg.scrollSens * (cfg.invert ? -1 : 1);
+      sx += dx * k; sy += dy * k;
+      return;
+    }
+    if (g.max >= 2) return; // finished a scroll with one finger still down: ignore
+
+    if (g.maybeDrag && !g.dragging && g.dist > TAP_MOVE) {
+      g.dragging = true;
+      send({ t: 'down', b: 'left', n: 1 });
+    }
+    // pointer acceleration: slow = precise, fast = covers the screen
+    const v = Math.hypot(dx, dy) / dt; // px per ms
+    const gain = cfg.sens * (0.8 + 1.5 * Math.min(v, 2.5));
+    mx += dx * gain; my += dy * gain;
+  }, { passive: false });
+
+  const end = e => {
+    e.preventDefault();
+    if (!g || e.targetTouches.length > 0) {
+      if (g && e.targetTouches.length) { const p = mid(e.targetTouches); g.x = p.x; g.y = p.y; }
+      return;
+    }
+    pad.classList.remove('active');
+    const now = performance.now(), quick = now - g.start < TAP_MS && g.dist < TAP_MOVE;
+    if (g.dragging) {
+      send({ t: 'up', b: 'left', n: 1 });
+    } else if (quick && g.max >= 2) {
+      send({ t: 'click', b: 'right', n: 1 });
+    } else if (quick || (g.maybeDrag && g.dist < TAP_MOVE)) {
+      tapCount = now - lastTapEnd < DOUBLE_MS ? Math.min(tapCount + 1, 3) : 1;
+      send({ t: 'click', b: 'left', n: tapCount });
+      lastTapEnd = now;
+    }
+    g = null;
+  };
+  pad.addEventListener('touchend', end, { passive: false });
+  pad.addEventListener('touchcancel', end, { passive: false });
+
+  // ---------- physical-style buttons (hold Left + slide on pad = drag) ----------
+  document.querySelectorAll('.mbtn').forEach(btn => {
+    const b = btn.dataset.b;
+    btn.addEventListener('touchstart', e => { e.preventDefault(); btn.classList.add('down'); send({ t: 'down', b, n: 1 }); }, { passive: false });
+    const up = e => { e.preventDefault(); btn.classList.remove('down'); send({ t: 'up', b, n: 1 }); };
+    btn.addEventListener('touchend', up, { passive: false });
+    btn.addEventListener('touchcancel', up, { passive: false });
+  });
+})();
+</script>
+</body>
+</html>
