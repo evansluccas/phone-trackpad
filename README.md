@@ -18,7 +18,7 @@ Use your iPhone as a trackpad for your Mac. No App Store, no installs.
 | 2 fingers slide | Scroll |
 | 2-finger tap | Right-click |
 | Hold **Left** + slide on pad | Drag |
-| 3 fingers left / right | Move between desktops and full-screen apps |
+| 3 fingers right / left | Next / previous desktop or full-screen app |
 | 3 fingers up / down | Mission Control / app windows |
 
 ## Keyboard

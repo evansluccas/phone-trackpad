@@ -297,8 +297,8 @@
       if (!g.axis && Math.hypot(g.tx, g.ty) > SWIPE_START) {
         g.axis = Math.abs(g.tx) > Math.abs(g.ty) ? 'x' : 'y';
         if (g.axis === 'x') {
-          // fingers move left -> slide to the desktop on the right (Ctrl+Right)
-          const k = g.tx < 0 ? 'right' : 'left';
+          // fingers move right -> next desktop (Ctrl+Right); left -> previous
+          const k = g.tx > 0 ? 'right' : 'left';
           send({ t: 'key', k, mods: ['ctrl'] });
           toast(k === 'right' ? 'Next desktop →' : '← Previous desktop');
         } else {
