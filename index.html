@@ -85,7 +85,14 @@
   /* keyboard extras (visible while typing) */
   .typing-bar { display: none; flex-direction: column; gap: 8px; }
   body.typing .typing-bar { display: flex; }
+  .typed-row { display: flex; align-items: center; gap: 8px; }
+  .send {
+    flex: none; height: 40px; padding: 0 16px; border: 0; border-radius: 10px;
+    background: var(--accent); color: #0b0c0f; font-weight: 700; font-size: 15px;
+  }
+  .send.down { filter: brightness(.85); }
   .typed {
+    flex: 1; min-width: 0;
     height: 22px; color: var(--muted); font-size: 13px; overflow: hidden; white-space: nowrap;
     direction: rtl; text-align: left; padding: 0 4px;
   }
@@ -100,7 +107,7 @@
   .key.down { background: #2a2f3a; }
   #kbd {
     position: fixed; bottom: 0; left: 0; width: 1px; height: 1px; opacity: 0;
-    font-size: 16px; border: 0; padding: 0; caret-color: transparent; color: transparent;
+    font-size: 16px; border: 0; padding: 0; caret-color: transparent; color: transparent; resize: none;
   }
 
   /* settings */
@@ -142,7 +149,10 @@
   </div>
 
   <div class="typing-bar">
-    <div class="typed"><span id="typed"></span></div>
+    <div class="typed-row">
+      <div class="typed"><span id="typed"></span></div>
+      <button class="send" data-key="enter">Send ⏎</button>
+    </div>
     <div class="keys">
       <button class="key small" data-key="esc">esc</button>
       <button class="key small" data-key="tab">tab</button>
@@ -166,7 +176,7 @@
   </div>
 </div>
 
-<input id="kbd" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="enter" aria-label="Type on your Mac">
+<textarea id="kbd" rows="1" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" aria-label="Type on your Mac"></textarea>
 
 <div class="sheet" id="sheet">
   <h2>Settings</h2>
@@ -401,7 +411,7 @@
   kbd.addEventListener('focus', () => { resetKbd(); document.body.classList.add('typing'); kbdBtn.classList.add('on'); });
   kbd.addEventListener('blur', () => { document.body.classList.remove('typing'); kbdBtn.classList.remove('on'); takeMods(); });
   kbd.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); sendKey('enter'); }
+    if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); sendKey('enter'); }
   });
   kbd.addEventListener('input', () => {
     const v = kbd.value;
@@ -410,7 +420,11 @@
     const deleted = SENTINEL.length - i;
     const added = v.slice(i).replace(/​/g, '');
     for (let n = 0; n < deleted; n++) sendKey('backspace');
-    if (added) sendText(added);
+    // A line break that slipped past keydown still becomes a real Return.
+    added.split(/\r?\n/).forEach((part, idx) => {
+      if (idx > 0) sendKey('enter');
+      if (part) sendText(part);
+    });
     resetKbd();
   });
 
@@ -421,7 +435,7 @@
   }, { passive: false });
 
   // extra keys row: preventDefault keeps the iOS keyboard open
-  document.querySelectorAll('.key').forEach(el => {
+  document.querySelectorAll('.key, .send').forEach(el => {
     el.addEventListener('touchstart', e => { e.preventDefault(); el.classList.add('down'); }, { passive: false });
     el.addEventListener('touchend', e => {
       e.preventDefault(); el.classList.remove('down');
