@@ -316,6 +316,11 @@ class Handler(socketserver.StreamRequestHandler):
                 headers[k.strip().lower()] = v.strip()
 
             url = urlparse(target)
+            # The Home Screen icon is not secret; iOS fetches it without the token.
+            if url.path in ("/apple-touch-icon.png", "/apple-touch-icon-precomposed.png"):
+                with open(os.path.join(HERE, "apple-touch-icon.png"), "rb") as f:
+                    return self.respond(200, "image/png", f.read())
+
             token = parse_qs(url.query).get("t", [""])[0]
             if not secrets.compare_digest(token, TOKEN):
                 return self.respond(403, "text/plain", b"Wrong or missing token. "
