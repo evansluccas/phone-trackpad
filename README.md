@@ -18,7 +18,7 @@ Use your iPhone as a trackpad for your Mac. No App Store, no installs.
 | 2 fingers slide | Scroll |
 | 2-finger tap | Right-click |
 | Hold **Left** + slide on pad | Drag |
-| 3 fingers left / right | Switch apps (Cmd+Tab, keeps going while you slide) |
+| 3 fingers left / right | Move between desktops and full-screen apps |
 | 3 fingers up / down | Mission Control / app windows |
 
 ## Keyboard
@@ -29,7 +29,7 @@ Switch to **Slides** at the top. Left and Right become big ‹ Back / Next › b
 
 Speed, scroll speed and scroll direction are in the settings button (top right).
 
-Mission Control uses the standard ⌃↑ / ⌃↓ shortcuts; if you turned those off in System Settings → Keyboard → Keyboard Shortcuts, the 3-finger up/down swipe won't do anything.
+3-finger swipes use the standard Mission Control shortcuts (⌃← / ⌃→ for desktops, ⌃↑ / ⌃↓ for Mission Control and app windows). If you turned those off in System Settings → Keyboard → Keyboard Shortcuts → Mission Control, the swipes won't do anything.
 
 ## Notes
 - The URL has a secret (`?t=…`, saved in `.token`) so nobody else on the Wi-Fi can control your Mac. Delete `.token` to make a new one.

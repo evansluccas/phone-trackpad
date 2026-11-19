@@ -143,7 +143,7 @@
       1 finger: move · tap: click<br>
       double-tap: double-click · double-tap + slide: drag<br>
       2 fingers: scroll · 2-finger tap: right-click<br>
-      3 fingers ← →: switch apps · ↑ ↓: Mission Control
+      3 fingers ← →: desktops · ↑ ↓: Mission Control
     </div>
     <div id="toast"></div>
   </div>
@@ -257,7 +257,7 @@
   // ---------- trackpad gestures ----------
   const pad = $('pad');
   const TAP_MS = 220, TAP_MOVE = 10, DOUBLE_MS = 320;
-  const SWIPE_START = 25, SWITCH_STEP = 70;
+  const SWIPE_START = 25;
   let g = null;            // current gesture
   let lastTapEnd = 0, tapCount = 0;
 
@@ -274,7 +274,7 @@
     if (!g) {
       g = { start: now, last: now, x: p.x, y: p.y, dist: 0, max: ts.length,
             maybeDrag: now - lastTapEnd < DOUBLE_MS, dragging: false,
-            tx: 0, ty: 0, axis: null, switching: false };
+            tx: 0, ty: 0, axis: null };
     } else {
       g.max = Math.max(g.max, ts.length);
       g.x = p.x; g.y = p.y; // re-anchor when finger count changes, no jump
@@ -289,23 +289,22 @@
     g.x = p.x; g.y = p.y; g.last = now;
     g.dist += Math.hypot(dx, dy);
 
-    // three fingers: app switcher (left/right) or Mission Control (up/down)
+    // three fingers, like the Mac trackpad: left/right = desktops & full-screen apps,
+    // up = Mission Control, down = app windows. One action per swipe.
     if (g.max >= 3) {
       if (ts.length < 3 && !g.axis) return;
       g.tx += dx; g.ty += dy;
       if (!g.axis && Math.hypot(g.tx, g.ty) > SWIPE_START) {
         g.axis = Math.abs(g.tx) > Math.abs(g.ty) ? 'x' : 'y';
         if (g.axis === 'x') {
-          g.switching = true; g.tx = 0;
-          send({ t: 'switcher', a: 'start' }); toast('Switch apps');
+          // fingers move left -> slide to the desktop on the right (Ctrl+Right)
+          const k = g.tx < 0 ? 'right' : 'left';
+          send({ t: 'key', k, mods: ['ctrl'] });
+          toast(k === 'right' ? 'Next desktop →' : '← Previous desktop');
         } else {
           const d = g.ty < 0 ? 'up' : 'down';
           send({ t: 'mission', d }); toast(d === 'up' ? 'Mission Control' : 'App windows');
         }
-      }
-      if (g.axis === 'x') {
-        while (g.tx > SWITCH_STEP) { send({ t: 'switcher', a: 'next' }); g.tx -= SWITCH_STEP; }
-        while (g.tx < -SWITCH_STEP) { send({ t: 'switcher', a: 'prev' }); g.tx += SWITCH_STEP; }
       }
       return;
     }
@@ -336,9 +335,7 @@
     }
     pad.classList.remove('active');
     const now = performance.now(), quick = now - g.start < TAP_MS && g.dist < TAP_MOVE;
-    if (g.switching) {
-      send({ t: 'switcher', a: 'end' });
-    } else if (g.max >= 3) {
+    if (g.max >= 3) {
       // three-finger gesture finished; nothing else to do
     } else if (g.dragging) {
       send({ t: 'up', b: 'left', n: 1 });
