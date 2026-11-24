@@ -60,7 +60,9 @@ EOF
   status)
     if launchctl print "$DOMAIN/$LABEL" >/dev/null 2>&1; then
       echo "Running in the background."
-      grep -E "http://|!|Accessibility|turn ON|python3  \(" "$LOG" | tail -6 || true
+      grep -E "\.local:|!|Accessibility|turn ON|python3  \(" "$LOG" | tail -6 || true
+      IFACE="$(route -n get default 2>/dev/null | awk '/interface:/{print $2}')"
+      echo "      http://$(ipconfig getifaddr "${IFACE:-en0}" 2>/dev/null || echo '?'):8765/?t=$(cat "$DIR/.token" 2>/dev/null)   (current network only)"
     else
       echo "Not installed. Run: ./autostart.sh install"
     fi

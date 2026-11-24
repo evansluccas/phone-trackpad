@@ -41,4 +41,5 @@ Speed, scroll speed and scroll direction are in the settings button (top right).
 
 ## Notes
 - The URL has a secret (`?t=…`, saved in `.token`) so nobody else on the Wi-Fi can control your Mac. Delete `.token` to make a new one.
-- If your Mac's IP changes, the Home Screen icon stops working; open the new printed URL and add it again.
+- The server prints an address with your Mac's name (`http://your-mac.local:8765/...`). It stays the same on every Wi-Fi network, so add **that** one to your Home Screen.
+- Some networks (offices, hotels, guest Wi-Fi) block devices from talking to each other. There, turn on your iPhone's Personal Hotspot and connect the Mac to it.

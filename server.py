@@ -18,6 +18,7 @@ import secrets
 import socket
 import socketserver
 import struct
+import subprocess
 import sys
 import threading
 from urllib.parse import parse_qs, urlparse
@@ -403,6 +404,18 @@ class Server(socketserver.ThreadingTCPServer):
     allow_reuse_address = True
 
 
+def local_hostname():
+    """The Mac's Bonjour name (e.g. my-mac.local). Unlike the IP address,
+    it stays the same on every Wi-Fi network."""
+    try:
+        out = subprocess.run(["scutil", "--get", "LocalHostName"],
+                             capture_output=True, text=True, timeout=3)
+        name = out.stdout.strip()
+        return f"{name}.local" if out.returncode == 0 and name else None
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
 def local_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
@@ -446,10 +459,16 @@ def main():
         else:
             print(f"      python3  ({os.path.realpath(sys.executable)})")
         print("    then restart the server.\n")
-    url = f"http://{local_ip()}:{PORT}/?t={TOKEN}"
+    name = local_hostname()
     print("\n  Phone Trackpad is running.")
     print("  On your iPhone (same Wi-Fi), open:\n")
-    print(f"      {url}\n")
+    if name:
+        print(f"      http://{name}:{PORT}/?t={TOKEN}\n")
+        print("  This address keeps working when you change Wi-Fi networks.")
+        print("  If a network blocks it, use the IP address for that network instead:")
+        print(f"      http://{local_ip()}:{PORT}/?t={TOKEN}   (current network only)\n")
+    else:
+        print(f"      http://{local_ip()}:{PORT}/?t={TOKEN}\n")
     print("  Tip: Safari > Share > Add to Home Screen to use it like an app.")
     print("  Press Ctrl+C to stop.\n")
     with Server(("0.0.0.0", PORT), Handler) as srv:
